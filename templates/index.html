@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>BirthdayMail — Automated Greetings Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #151820;
+    --surface2:  #1d2130;
+    --border:    rgba(255,255,255,.07);
+    --accent:    #ff6b6b;
+    --accent2:   #ffd93d;
+    --accent3:   #6bcb77;
+    --text:      #e8eaf0;
+    --muted:     #7b8099;
+    --radius:    14px;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── BG noise/grid ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 10% 20%, rgba(255,107,107,.08) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 60% at 90% 80%, rgba(107,203,119,.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* ── Layout ── */
+  .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 32px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), #ff9f43);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; box-shadow: 0 4px 20px rgba(255,107,107,.35);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{box-shadow:0 4px 20px rgba(255,107,107,.35)} 50%{box-shadow:0 4px 32px rgba(255,107,107,.6)} }
+  .logo-text { font-family: var(--font-head); font-weight: 800; font-size: 22px; letter-spacing: -.5px; }
+  .logo-text span { color: var(--accent); }
+  .status-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: 100px;
+    font-size: 13px; color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent3); animation: blink 2s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── Steps ── */
+  .steps {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 48px;
+  }
+  .step-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; position: relative; overflow: hidden; cursor: pointer;
+    transition: border-color .2s, transform .2s;
+  }
+  .step-card:hover { border-color: rgba(255,255,255,.18); transform: translateY(-2px); }
+  .step-card.active { border-color: var(--accent); }
+  .step-card.active::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), #ff9f43);
+  }
+  .step-card.done { border-color: var(--accent3); }
+  .step-card.done::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent3);
+  }
+  .step-num { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .step-title { font-family: var(--font-head); font-weight: 700; font-size: 16px; }
+  .step-icon { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 28px; opacity: .6; }
+
+  /* ── Section panels ── */
+  .panel { display: none; animation: fadeIn .3s ease; }
+  .panel.visible { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+  .panel-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 32px;
+  }
+  .panel-title {
+    font-family: var(--font-head); font-weight: 700; font-size: 20px;
+    margin-bottom: 24px; display: flex; align-items: center; gap: 10px;
+  }
+
+  /* ── Drop zone ── */
+  .dropzone {
+    border: 2px dashed rgba(255,255,255,.15); border-radius: 12px;
+    padding: 48px 32px; text-align: center; cursor: pointer;
+    transition: border-color .2s, background .2s; position: relative;
+  }
+  .dropzone:hover, .dropzone.drag-over { border-color: var(--accent); background: rgba(255,107,107,.04); }
+  .dropzone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .dz-icon { font-size: 48px; margin-bottom: 12px; }
+  .dz-title { font-family: var(--font-head); font-weight: 700; font-size: 18px; margin-bottom: 6px; }
+  .dz-sub { color: var(--muted); font-size: 14px; }
+  .dz-sub span { color: var(--accent); text-decoration: underline; cursor: pointer; }
+
+  /* ── CSV Preview table ── */
+  .table-wrap { overflow-x: auto; margin-top: 24px; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    background: var(--surface2); color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: .6px; font-size: 11px;
+    padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 11px 16px; color: var(--text); }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600;
+    background: rgba(107,203,119,.15); color: var(--accent3); letter-spacing: .3px;
+  }
+
+  /* ── Form fields ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .form-group { display: flex; flex-direction: column; gap: 8px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: .3px; }
+  input[type=text], input[type=email], input[type=password], input[type=number], input[type=date], select, textarea {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; color: var(--text);
+    font-family: var(--font-body); font-size: 14px; outline: none;
+    transition: border-color .2s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+  textarea { resize: vertical; min-height: 120px; font-size: 12.5px; font-family: monospace; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 28px; border-radius: 10px; font-weight: 600; font-size: 15px;
+    font-family: var(--font-head); cursor: pointer; border: none; transition: all .2s;
+    letter-spacing: -.2px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #ff9f43);
+    color: #fff; box-shadow: 0 4px 20px rgba(255,107,107,.35);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(255,107,107,.45); }
+  .btn-primary:active { transform: none; }
+  .btn-ghost {
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: rgba(255,255,255,.2); }
+  .btn-success {
+    background: linear-gradient(135deg, var(--accent3), #4ecdc4);
+    color: #fff; box-shadow: 0 4px 20px rgba(107,203,119,.3);
+  }
+  .btn-success:hover { transform: translateY(-2px); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+
+  .btn-row { display: flex; gap: 12px; align-items: center; margin-top: 28px; flex-wrap: wrap; }
+
+  /* ── Log terminal ── */
+  .terminal {
+    background: #0a0c10; border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-top: 24px; min-height: 200px; max-height: 380px;
+    overflow-y: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12.5px; line-height: 1.7;
+  }
+  .terminal::-webkit-scrollbar { width: 4px; }
+  .terminal::-webkit-scrollbar-track { background: transparent; }
+  .terminal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .log-line { display: block; }
+  .log-info  { color: #7bb6f0; }
+  .log-match { color: var(--accent2); }
+  .log-sent  { color: var(--accent3); }
+  .log-skip  { color: var(--muted); }
+  .log-error { color: var(--accent); }
+  .log-done  { color: var(--accent3); font-weight: 700; }
+  .log-fatal { color: var(--accent); font-weight: 700; }
+  .log-warn  { color: #ffa94d; }
+
+  /* ── Stats ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 24px; text-align: center;
+  }
+  .stat-value { font-family: var(--font-head); font-weight: 800; font-size: 36px; }
+  .stat-label { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .stat-sent .stat-value   { color: var(--accent3); }
+  .stat-skip .stat-value   { color: var(--accent2); }
+  .stat-error .stat-value  { color: var(--accent); }
+
+  /* ── Running spinner ── */
+  .spinner {
+    width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.2);
+    border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* ── Progress bar ── */
+  .progress-wrap { background: var(--surface2); border-radius: 100px; height: 6px; margin-bottom: 12px; overflow: hidden; }
+  .progress-bar  { height: 100%; background: linear-gradient(90deg, var(--accent), #ff9f43); border-radius: 100px; transition: width .4s; }
+
+  /* ── Alert ── */
+  .alert { padding: 14px 18px; border-radius: 10px; font-size: 14px; margin-top: 16px; display: flex; gap: 10px; align-items: flex-start; }
+  .alert-info    { background: rgba(123,182,240,.1); border: 1px solid rgba(123,182,240,.25); color: #7bb6f0; }
+  .alert-success { background: rgba(107,203,119,.1); border: 1px solid rgba(107,203,119,.25); color: var(--accent3); }
+  .alert-danger  { background: rgba(255,107,107,.1); border: 1px solid rgba(255,107,107,.25); color: var(--accent); }
+
+  /* ── Template preview ── */
+  .template-preview {
+    border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    margin-top: 16px; height: 200px;
+  }
+  .template-preview iframe { width: 100%; height: 100%; border: none; transform: scale(.7); transform-origin: 0 0; width: 143%; height: 143%; }
+
+  @media (max-width: 700px) {
+    .steps { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎂</div>
+      <div>
+        <div class="logo-text">Birthday<span>Mail</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Automated Birthday Greetings Dashboard</div>
+      </div>
+    </div>
+    <div class="status-badge">
+      <div class="dot"></div>
+      System Ready
+    </div>
+  </header>
+
+  
+  <div class="steps">
+    <div class="step-card active" onclick="goStep(1)" id="step-1-card">
+      <div class="step-num">Step 01</div>
+      <div class="step-title">Upload CSV</div>
+      <div class="step-icon">📂</div>
+    </div>
+    <div class="step-card" onclick="goStep(2)" id="step-2-card">
+      <div class="step-num">Step 02</div>
+      <div class="step-title">Configure Email</div>
+      <div class="step-icon">⚙️</div>
+    </div>
+    <div class="step-card" onclick="goStep(3)" id="step-3-card">
+      <div class="step-num">Step 03</div>
+      <div class="step-title">Send & Monitor</div>
+      <div class="step-icon">🚀</div>
+    </div>
+  </div>
+
+  
+  <div class="panel visible" id="panel-1">
+    <div class="panel-box">
+      <div class="panel-title">📂 Upload Recipients CSV</div>
+
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="csvFile" accept=".csv">
+        <div class="dz-icon">📋</div>
+        <div class="dz-title">Drop your CSV file here</div>
+        <div class="dz-sub">or <span>browse files</span> to upload · Max 100MB</div>
+      </div>
+
+      <div class="alert alert-info" style="margin-top:20px">
+        ℹ️ &nbsp;CSV must have columns: <strong>name</strong>, <strong>email</strong>, <strong>dob</strong> (DD-MM-YYYY or DD/MM/YYYY), and optionally <strong>rollnumber</strong>
+      </div>
+
+      <div id="preview-area" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:28px;margin-bottom:4px">
+          <div style="font-family:var(--font-head);font-weight:700;font-size:16px">Preview <span id="row-count" style="color:var(--muted);font-weight:400;font-size:14px"></span></div>
+          <div id="file-name-badge" class="badge">—</div>
+        </div>
+        <div class="table-wrap" id="preview-table"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="goStep(2)">Continue to Config →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="panel" id="panel-2">
+    <div class="panel-box">
+      <div class="panel-title">⚙️ Email Configuration</div>
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label>SENDER EMAIL ADDRESS</label>
+          <input type="email" id="senderEmail" placeholder="you@gmail.com">
+        </div>
+
+        <div class="form-group">
+          <label>APP PASSWORD (Gmail 16-char)</label>
+          <input type="password" id="appPassword" placeholder="xxxx xxxx xxxx xxxx" autocomplete="new-password">
+          <div class="hint">Generate at: Google Account → Security → App Passwords</div>
+        </div>
+
+        <div class="form-group">
+          <label>SMTP SERVER</label>
+          <input type="text" id="smtpServer" value="smtp.gmail.com">
+        </div>
+
+        <div class="form-group">
+          <label>SMTP PORT</label>
+          <input type="number" id="smtpPort" value="587">
+        </div>
+
+
+
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(3)">Review & Send →</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="panel" id="panel-3">
+    <div class="panel-box">
+      <div class="panel-title">🚀 Send Birthday Emails</div>
+
+      <div id="summary-box" style="margin-bottom:24px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 18px">
+            <div style="color:var(--muted);font-size:12px;margin-bottom:6px">FROM</div>
+            <div id="summary-sender" style="font-weight:600">—</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 18px">
+            <div style="color:var(--muted);font-size:12px;margin-bottom:6px">DATE</div>
+            <div id="summary-date" style="font-weight:600">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card stat-sent">
+          <div class="stat-value" id="stat-sent">—</div>
+          <div class="stat-label">Sent</div>
+        </div>
+        <div class="stat-card stat-skip">
+          <div class="stat-value" id="stat-skip">—</div>
+          <div class="stat-label">Skipped</div>
+        </div>
+        <div class="stat-card stat-error">
+          <div class="stat-value" id="stat-error">—</div>
+          <div class="stat-label">Errors</div>
+        </div>
+      </div>
+
+      <div id="progress-wrap" class="progress-wrap" style="display:none">
+        <div class="progress-bar" id="progress-bar" style="width:5%"></div>
+      </div>
+
+      <div class="terminal" id="terminal">
+        <span class="log-line log-info">[READY] Configure email settings and press "Send Now" to begin.</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(2)">← Back</button>
+        <button class="btn btn-success" id="send-btn" onclick="startSend()">🎉 Send Now</button>
+        <div id="running-indicator" style="display:none;align-items:center;gap:10px;color:var(--muted);font-size:14px">
+          <div class="spinner"></div> Processing…
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let csvText = null;
+  let currentStep = 1;
+  let currentJobId = null;
+  let pollInterval = null;
+
+  // ── Step navigation ──
+  function goStep(n) {
+    if (n === 2 && !csvText) { alert('Please upload a CSV file first.'); return; }
+    if (n === 3) { updateSummary(); }
+
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
+    document.querySelectorAll('.step-card').forEach(c => { c.classList.remove('active', 'done'); });
+
+    document.getElementById('panel-' + n).classList.add('visible');
+    document.getElementById('step-' + n + '-card').classList.add('active');
+    for (let i = 1; i < n; i++) document.getElementById('step-' + i + '-card').classList.add('done');
+    currentStep = n;
+  }
+
+  function updateSummary() {
+    const sender = document.getElementById('senderEmail').value || 'Not set';
+    document.getElementById('summary-sender').textContent = sender;
+    document.getElementById('summary-date').textContent = 'Today (' + new Date().toLocaleDateString('en-IN') + ')';
+  }
+
+  // ── CSV upload ──
+  const dz = document.getElementById('dropzone');
+  const fileInput = document.getElementById('csvFile');
+
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+  async function handleFile(file) {
+    if (!file) return;
+    dz.innerHTML = `<div class="dz-icon">⏳</div><div class="dz-title">Reading ${file.name}…</div>`;
+
+    const formData = new FormData();
+    formData.append('csv', file);
+
+    try {
+      const res = await fetch('/api/preview-csv', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      csvText = data.csv_text;
+
+      dz.innerHTML = `<div class="dz-icon">✅</div><div class="dz-title">${file.name} uploaded</div>
+        <div class="dz-sub">Click to replace</div>
+        <input type="file" id="csvFile" accept=".csv">`;
+      dz.querySelector('input').addEventListener('change', e => handleFile(e.target.files[0]));
+
+      document.getElementById('file-name-badge').textContent = file.name;
+      document.getElementById('row-count').textContent = `— ${data.rows.length} preview rows`;
+
+      buildTable(data.columns, data.rows);
+      document.getElementById('preview-area').style.display = 'block';
+    } catch (e) {
+      dz.innerHTML = `<div class="dz-icon">❌</div><div class="dz-title">Error: ${e.message}</div>
+        <input type="file" id="csvFile" accept=".csv"><div class="dz-sub">Try again</div>`;
+      dz.querySelector('input').addEventListener('change', ev => handleFile(ev.target.files[0]));
+    }
+  }
+
+  function buildTable(cols, rows) {
+    const wrap = document.getElementById('preview-table');
+    const headers = cols.map(c => `<th>${c}</th>`).join('');
+    const bodyRows = rows.map(r =>
+      '<tr>' + cols.map(c => {
+        let val = r[c] || '';
+        if (c === 'email') val = `<span style="color:#7bb6f0">${val}</span>`;
+        if (c === 'dob' || c === 'date_of_birth') val = `<span class="badge">${val}</span>`;
+        return `<td>${val}</td>`;
+      }).join('') + '</tr>'
+    ).join('');
+    wrap.innerHTML = `<table><thead><tr>${headers}</tr></thead><tbody>${bodyRows}</tbody></table>`;
+  }
+
+  // ── Send emails ──
+  async function startSend() {
+    const sender = document.getElementById('senderEmail').value.trim();
+    const appPassword = document.getElementById('appPassword').value.trim();
+    if (!sender || !appPassword) { alert('Please fill in Sender Email and App Password.'); goStep(2); return; }
+    if (!csvText) { alert('No CSV loaded.'); goStep(1); return; }
+
+    const btn = document.getElementById('send-btn');
+    btn.disabled = true;
+    document.getElementById('running-indicator').style.display = 'flex';
+    document.getElementById('progress-wrap').style.display = 'block';
+    document.getElementById('progress-bar').style.width = '5%';
+    clearTerminal();
+    logLine('[INFO] Starting job…', 'info');
+
+    const payload = {
+      csv_text: csvText,
+      sender,
+      app_password: appPassword,
+      smtp_server: document.getElementById('smtpServer').value || 'smtp.gmail.com',
+      smtp_port: document.getElementById('smtpPort').value || 587
+    };
+
+    try {
+      const res = await fetch('/api/send', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      currentJobId = data.job_id;
+      logLine(`[INFO] Job ID: ${currentJobId}`, 'info');
+      pollInterval = setInterval(pollJob, 1200);
+    } catch (e) {
+      logLine(`[FATAL] ${e.message}`, 'fatal');
+      btn.disabled = false;
+      document.getElementById('running-indicator').style.display = 'none';
+    }
+  }
+
+  let lastLogLen = 0;
+  async function pollJob() {
+    if (!currentJobId) return;
+    try {
+      const res = await fetch(`/api/job/${currentJobId}`);
+      const job = await res.json();
+
+      const newLogs = job.logs.slice(lastLogLen);
+      newLogs.forEach(line => logLine(line));
+      lastLogLen = job.logs.length;
+
+      document.getElementById('stat-sent').textContent  = job.sent  ?? '—';
+      document.getElementById('stat-skip').textContent  = job.skipped ?? '—';
+      document.getElementById('stat-error').textContent = job.errors ?? '—';
+
+      if (job.status === 'running') {
+        document.getElementById('progress-bar').style.width = '60%';
+      }
+
+      if (job.status === 'done' || job.status === 'error') {
+        clearInterval(pollInterval);
+        document.getElementById('progress-bar').style.width = '100%';
+        document.getElementById('running-indicator').style.display = 'none';
+        document.getElementById('send-btn').disabled = false;
+        lastLogLen = 0;
+        currentJobId = null;
+      }
+    } catch (e) {
+      logLine(`[ERROR] Polling failed: ${e.message}`, 'error');
+    }
+  }
+
+  function classForLine(line) {
+    if (line.startsWith('[SENT]'))  return 'sent';
+    if (line.startsWith('[MATCH]')) return 'match';
+    if (line.startsWith('[SKIP]'))  return 'skip';
+    if (line.startsWith('[ERROR]') || line.startsWith('[FATAL]')) return line.includes('FATAL') ? 'fatal' : 'error';
+    if (line.startsWith('[WARN]'))  return 'warn';
+    if (line.startsWith('[DONE]'))  return 'done';
+    return 'info';
+  }
+
+  function logLine(text, cls) {
+    const term = document.getElementById('terminal');
+    const span = document.createElement('span');
+    span.className = 'log-line log-' + (cls || classForLine(text));
+    span.textContent = text;
+    term.appendChild(span);
+    term.appendChild(document.createTextNode('\n'));
+    term.scrollTop = term.scrollHeight;
+  }
+
+  function clearTerminal() {
+    document.getElementById('terminal').innerHTML = '';
+  }
+</script>
+</body>
+</html>
