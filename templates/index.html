@@ -529,10 +529,9 @@
       const res = await fetch(`/api/job/${currentJobId}`);
       const job = await res.json();
 
-      cconst logs = Array.isArray(job.logs) ? job.logs : [];
-      const newLogs = logs.slice(lastLogLen);
+      const newLogs = job.logs.slice(lastLogLen);
       newLogs.forEach(line => logLine(line));
-      lastLogLen = logs.length;
+      lastLogLen = job.logs.length;
 
       document.getElementById('stat-sent').textContent  = job.sent  ?? '—';
       document.getElementById('stat-skip').textContent  = job.skipped ?? '—';
