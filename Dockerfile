@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # Install wkhtmltopdf (includes wkhtmltoimage)
 RUN apt-get update && \
@@ -23,3 +23,4 @@ EXPOSE 10000
 
 # Start app
 CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:10000"]
+
