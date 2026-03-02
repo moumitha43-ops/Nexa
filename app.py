@@ -292,18 +292,48 @@ def index():
 
 @app.route("/api/preview-csv", methods=["POST"])
 def preview_csv():
-    """Return first 10 rows + column names from uploaded CSV"""
+    """
+    Return only birthday-matching rows (today or preview_date)
+    """
     file = request.files.get("csv")
     if not file:
         return jsonify({"error": "No file"}), 400
+
+    preview_date = None
+    if request.form.get("preview_date"):
+        try:
+            preview_date = datetime.strptime(
+                request.form["preview_date"], "%Y-%m-%d"
+            ).date()
+        except Exception:
+            pass
+
+    today = preview_date if preview_date else today_local()
+
     text = file.read().decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
-    rows = []
-    for i, row in enumerate(reader):
-        if i >= 10:
+
+    matched_rows = []
+
+    for row in reader:
+        dob_raw = (row.get("dob") or row.get("date_of_birth") or "").strip()
+        dob_parsed = parse_dob(dob_raw)
+
+        if not dob_parsed:
+            continue
+
+        if (dob_parsed.day, dob_parsed.month) == (today.day, today.month):
+            matched_rows.append(dict(row))
+
+        if len(matched_rows) >= 10:  # preview limit
             break
-        rows.append(dict(row))
-    return jsonify({"columns": reader.fieldnames or [], "rows": rows, "csv_text": text})
+
+    return jsonify({
+        "date_used": today.isoformat(),
+        "columns": reader.fieldnames or [],
+        "rows": matched_rows,
+        "count": len(matched_rows)
+    })
 
 
 @app.route("/api/send", methods=["POST"])
